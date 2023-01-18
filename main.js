@@ -108,6 +108,10 @@ function click(x, y) {
         return;
     }
     board[selectedSquare.x][selectedSquare.y].td.classList.remove("selected");
+    if (selectedSquare.x === x && selectedSquare.y === y) {
+        selectedSquare = null;
+        return;
+    }
     if (selectedSquare.piece !== null && canMove(selectedSquare.x, selectedSquare.y, x, y)) {
         move(selectedSquare.x, selectedSquare.y, x, y);
         setLastMove(selectedSquare.x, selectedSquare.y, x, y);
@@ -143,17 +147,17 @@ function canMove(xFrom, yFrom, xTo, yTo) {
     if (xFrom === xTo && yFrom === yTo) return false;
     if (squareFrom.piece.type === "pawn") {
         const direction = (turn === "white") ? -1 : 1;
-        if (squareFrom.piece.x + direction === xTo && yFrom === yTo) { // pawn single advancement
+        if (xFrom + direction === xTo && yFrom === yTo) { // pawn single advancement
             if (squareTo.piece === null) return true;
             return false;
         }
-        if (squareFrom.piece.x + 2 * direction === xTo && yFrom === yTo) { // pawn double initial advancement
+        if (xFrom + 2 * direction === xTo && yFrom === yTo) { // pawn double initial advancement
             if ((xFrom === 6 && turn === "white") || (xFrom === 1 && turn === "black")) {
                 if (squareTo.piece === null && board[xFrom + direction][yFrom].piece === null) return true;
             }
             return false;
         }
-        if (squareFrom.piece.x + direction === xTo && (yFrom === yTo - 1 || yFrom === yTo + 1)) { // pawn eat
+        if (xFrom + direction === xTo && (yFrom === yTo - 1 || yFrom === yTo + 1)) { // pawn eat
             if (squareTo.piece !== null && squareTo.piece.color !== turn) return true;
             return false;
         }
@@ -191,6 +195,8 @@ function move(xFrom, yFrom, xTo, yTo) {
         ((xTo === BOARD_DIM - 1 && squareTo.piece.color === "black")))
     ) {
         squareTo.piece.type = "queen"; // promotion
+        squareTo.td.firstChild.remove();
+        squareTo.td.appendChild(images[squareTo.piece.color]["queen"].cloneNode());
     }
 }
 
@@ -225,21 +231,21 @@ buttons.newBlackGame.addEventListener("click", () => {
     turn = "black";
 });
 
-const session = pl.create();
-session.consult(program, {
-    success: () => {
-        session.query("getStartingBoard(B).", {
-        // session.query("search(" + boardToPrologString() + ", " + turn + ", " + 3 + ", Moves).", {
-            success: function () {
-                session.answer({
-                    success: function (answer) {
-                        console.log(session.format_answer(answer));
-                    },
-                    error: (error) => console.error("Error (" + error + ")"),
-                    fail: () => console.log("Fail"),
-                    limit: () => console.log("Limit reached")
-                });
-            }, error: (error) => console.error("Error in parsing the goal (" + error + ")")
-        });
-    }, error: (error) => console.error("Error in parsing the program (" + error + ")")
-});  
+// const session = pl.create();
+// session.consult(program, {
+//     success: () => {
+//         // session.query("getStartingBoard(B).", {
+//         session.query("search(" + boardToPrologString() + ", " + turn + ", " + 1 + ", Moves).", {
+//             success: function () {
+//                 session.answer({
+//                     success: function (answer) {
+//                         console.log(session.format_answer(answer));
+//                     },
+//                     error: (error) => console.error("Error (" + error + ")"),
+//                     fail: () => console.log("Fail"),
+//                     limit: () => console.log("Limit reached")
+//                 });
+//             }, error: (error) => console.error("Error in parsing the goal (" + error + ")")
+//         });
+//     }, error: (error) => console.error("Error in parsing the program (" + error + ")")
+// });  
