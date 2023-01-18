@@ -15,7 +15,7 @@ body {
     user-select: none;
 }
 
-h1, p {
+h1 {
     margin: 0;
     padding: 0.25em 0;
     text-align: center;
@@ -84,10 +84,4 @@ tr:nth-child(even) td:nth-child(even), tr:nth-child(odd) td:nth-child(odd) {
 }
 tr:nth-child(odd) td:nth-child(even), tr:nth-child(even) td:nth-child(odd) {
     background-color: var(--palette-color-3);
-}
-
-footer {
-    position: absolute;
-    bottom: 0;
-    width: 100vw;
 }
