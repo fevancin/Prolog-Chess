@@ -23,6 +23,7 @@ const initialPieces = [
     {type: "pawn", color: "black", x: 1, y: 1}, {type: "pawn", color: "black", x: 0, y: 1}
 ];
 
+// creating a dictionary of images, cloning is faster than loading multiple time
 const images = {};
 for (const color of COLORS) {
     images[color] = {}
@@ -34,6 +35,7 @@ for (const color of COLORS) {
     }
 }
 
+// creating the global board variable, with element and piece references
 const board = [];
 for (let i = 0; i < BOARD_DIM; i++) {
     const row = [];
@@ -50,9 +52,10 @@ for (let i = 0; i < BOARD_DIM; i++) {
 
 let turn = "white";
 
-let previousMove = null;
+let lastMove = null;
 let selectedSquare = null;
 
+// reset the board to the initial state
 function placeInitialPieces() {
     for (let i = 0; i < BOARD_DIM; i++) {
         for (let j = 0; j < BOARD_DIM; j++) {
@@ -68,10 +71,10 @@ function placeInitialPieces() {
         square.piece = {type: piece.type, color: piece.color};
         square.td.appendChild(images[piece.color][piece.type].cloneNode());
     }
-    if (previousMove !== null) {
-        board[previousMove.from.x][previousMove.from.y].td.classList.remove("lastmove");
-        board[previousMove.to.x][previousMove.to.y].td.classList.remove("lastmove");
-        previousMove = null;
+    if (lastMove !== null) {
+        board[lastMove.from.x][lastMove.from.y].td.classList.remove("lastmove");
+        board[lastMove.to.x][lastMove.to.y].td.classList.remove("lastmove");
+        lastMove = null;
     }
     if (selectedSquare !== null) {
         board[selectedSquare.x][selectedSquare.y].td.classList.remove("selected");
@@ -79,19 +82,17 @@ function placeInitialPieces() {
     }
 }
 
-placeInitialPieces();
-
-function setPreviousMove(xFrom, yFrom, xTo, yTo) {
-    if (previousMove !== null) {
-        board[previousMove.from.x][previousMove.from.y].td.classList.remove("lastmove");
-        board[previousMove.to.x][previousMove.to.y].td.classList.remove("lastmove");
+function setLastMove(xFrom, yFrom, xTo, yTo) {
+    if (lastMove !== null) {
+        board[lastMove.from.x][lastMove.from.y].td.classList.remove("lastmove");
+        board[lastMove.to.x][lastMove.to.y].td.classList.remove("lastmove");
     }
-    previousMove = {
+    lastMove = {
         from: {x: xFrom, y: yFrom},
         to: {x: xTo, y: yTo}
     };
-    board[previousMove.from.x][previousMove.from.y].td.classList.add("lastmove");
-    board[previousMove.to.x][previousMove.to.y].td.classList.add("lastmove");
+    board[lastMove.from.x][lastMove.from.y].td.classList.add("lastmove");
+    board[lastMove.to.x][lastMove.to.y].td.classList.add("lastmove");
 }
 
 function click(x, y) {
@@ -103,7 +104,7 @@ function click(x, y) {
     board[selectedSquare.x][selectedSquare.y].td.classList.remove("selected");
     if (selectedSquare.piece !== null && canMove(selectedSquare.x, selectedSquare.y, x, y)) {
         move(selectedSquare.x, selectedSquare.y, x, y);
-        setPreviousMove(selectedSquare.x, selectedSquare.y, x, y);
+        setLastMove(selectedSquare.x, selectedSquare.y, x, y);
         selectedSquare = null;
         return;
     }
@@ -127,6 +128,7 @@ const moveVectors = {
     bishop: [{x: -1, y: -1, t: 8}, {x: -1, y: 1, t: 8}, {x: 1, y: -1, t: 8}, {x: 1, y: 1, t: 8}]
 };
 
+// returns true if (xFrom, yFrom) to (xTo, yTo) is a legal move
 function canMove(xFrom, yFrom, xTo, yTo) {
     const squareTo = board[xTo][yTo];
     const squareFrom = board[xFrom][yFrom];
@@ -155,6 +157,7 @@ function canMove(xFrom, yFrom, xTo, yTo) {
     return false;
 }
 
+// move the piece at (xFrom, yFrom) to (xTo, yTo)
 function move(xFrom, yFrom, xTo, yTo) {
     const squareFrom = board[xFrom][yFrom];
     const squareTo = board[xTo][yTo];
@@ -180,3 +183,5 @@ buttons.newBlackGame.addEventListener("click", () => {
     placeInitialPieces();
     turn = "black";
 });
+
+placeInitialPieces();

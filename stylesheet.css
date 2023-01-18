@@ -1,9 +1,9 @@
 :root {
-    --palette-color-1: rgb(35, 191, 218);
-    --palette-color-2: rgb(194, 224, 229);
-    --palette-color-3: rgb(17, 125, 144);
-    --palette-color-4: rgb(230, 255, 2);
-    --palette-color-5: rgb(87, 213, 78);
+    --palette-color-1: rgb(35, 191, 218); /* header color */
+    --palette-color-2: rgb(194, 224, 229); /* background color */
+    --palette-color-3: rgb(17, 125, 144); /* black squares color */
+    --palette-color-4: rgb(230, 255, 2); /* selected color */
+    --palette-color-5: rgb(87, 213, 78); /* last move color */
 }
 
 body {
