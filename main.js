@@ -1,5 +1,11 @@
 "use strict";
 
+const buttons = {
+    newWhiteGame: document.getElementById("new-white-game"),
+    newBlackGame: document.getElementById("new-black-game")
+};
+if (buttons.newWhiteGame === null || buttons.newBlackGame === null) throw new Error("Buttons not found");
+
 const BOARD_DIM = 8;
 const TYPES = ["king", "queen", "rook", "knight", "bishop", "pawn"];
 const COLORS = ["white", "black"];
@@ -130,13 +136,27 @@ const moveVectors = {
 
 // returns true if (xFrom, yFrom) to (xTo, yTo) is a legal move
 function canMove(xFrom, yFrom, xTo, yTo) {
-    const squareTo = board[xTo][yTo];
     const squareFrom = board[xFrom][yFrom];
+    const squareTo = board[xTo][yTo];
     if (squareFrom.piece === null) return false;
     if (squareFrom.piece.color !== turn) return false;
     if (xFrom === xTo && yFrom === yTo) return false;
     if (squareFrom.piece.type === "pawn") {
-        // TODO
+        const direction = (turn === "white") ? -1 : 1;
+        if (squareFrom.piece.x + direction === xTo && yFrom === yTo) { // pawn single advancement
+            if (squareTo.piece === null) return true;
+            return false;
+        }
+        if (squareFrom.piece.x + 2 * direction === xTo && yFrom === yTo) { // pawn double initial advancement
+            if ((xFrom === 6 && turn === "white") || (xFrom === 1 && turn === "black")) {
+                if (squareTo.piece === null && board[xFrom + direction][yFrom].piece === null) return true;
+            }
+            return false;
+        }
+        if (squareFrom.piece.x + direction === xTo && (yFrom === yTo - 1 || yFrom === yTo + 1)) { // pawn eat
+            if (squareTo.piece !== null && squareTo.piece.color !== turn) return true;
+            return false;
+        }
         return false;
     }
     const moveVector = moveVectors[squareFrom.piece.type];
@@ -166,13 +186,34 @@ function move(xFrom, yFrom, xTo, yTo) {
     squareTo.piece = squareFrom.piece;
     squareFrom.piece = null;
     turn = (turn === "white") ? "black" : "white";
+    if (squareTo.piece.type === "pawn" &&
+        ((xTo === 0 && squareTo.piece.color === "white") ||
+        ((xTo === BOARD_DIM - 1 && squareTo.piece.color === "black")))
+    ) {
+        squareTo.piece.type = "queen"; // promotion
+    }
 }
 
-const buttons = {
-    newWhiteGame: document.getElementById("new-white-game"),
-    newBlackGame: document.getElementById("new-black-game")
-};
-if (buttons.newWhiteGame === null || buttons.newBlackGame === null) throw new Error("Buttons not found");
+function boardToPrologString() {
+    let string = "[";
+    for (let i = 0; i < BOARD_DIM; i++) {
+        string += "[";
+        for (let j = 0; j < BOARD_DIM; j++) {
+            const piece = board[i][j].piece;
+            if (piece === null) string += "empty";
+            else {
+                string += "[" + piece.color + "," + piece.type + "]";
+            }
+            if (j + 1 < BOARD_DIM) string += ",";
+        }
+        string += "]";
+        if (i + 1 < BOARD_DIM) string += ",";
+    }
+    string += "]";
+    return string;
+}
+
+placeInitialPieces();
 
 buttons.newWhiteGame.addEventListener("click", () => {
     placeInitialPieces();
@@ -184,4 +225,21 @@ buttons.newBlackGame.addEventListener("click", () => {
     turn = "black";
 });
 
-placeInitialPieces();
+const session = pl.create();
+session.consult(program, {
+    success: () => {
+        session.query("getStartingBoard(B).", {
+        // session.query("search(" + boardToPrologString() + ", " + turn + ", " + 3 + ", Moves).", {
+            success: function () {
+                session.answer({
+                    success: function (answer) {
+                        console.log(session.format_answer(answer));
+                    },
+                    error: (error) => console.error("Error (" + error + ")"),
+                    fail: () => console.log("Fail"),
+                    limit: () => console.log("Limit reached")
+                });
+            }, error: (error) => console.error("Error in parsing the goal (" + error + ")")
+        });
+    }, error: (error) => console.error("Error in parsing the program (" + error + ")")
+});  
