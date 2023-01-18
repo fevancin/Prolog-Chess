@@ -35,7 +35,6 @@ for (const color of COLORS) {
 }
 
 const board = [];
-let turn = "white";
 for (let i = 0; i < BOARD_DIM; i++) {
     const row = [];
     for (let j = 0; j < BOARD_DIM; j++) {
@@ -49,13 +48,39 @@ for (let i = 0; i < BOARD_DIM; i++) {
     board.push(row);
 }
 
-for (const piece of initialPieces) {
-    const square = board[piece.y][piece.x];
-    square.piece = {type: piece.type, color: piece.color};
-    square.td.appendChild(images[piece.color][piece.type].cloneNode());
-}
+let turn = "white";
 
 let previousMove = null;
+let selectedSquare = null;
+
+function placeInitialPieces() {
+    for (let i = 0; i < BOARD_DIM; i++) {
+        for (let j = 0; j < BOARD_DIM; j++) {
+            const square = board[i][j];
+            if (square.piece !== null) {
+                square.td.firstChild.remove();
+                square.piece = null;
+            }
+        }
+    }
+    for (const piece of initialPieces) {
+        const square = board[piece.y][piece.x];
+        square.piece = {type: piece.type, color: piece.color};
+        square.td.appendChild(images[piece.color][piece.type].cloneNode());
+    }
+    if (previousMove !== null) {
+        board[previousMove.from.x][previousMove.from.y].td.classList.remove("lastmove");
+        board[previousMove.to.x][previousMove.to.y].td.classList.remove("lastmove");
+        previousMove = null;
+    }
+    if (selectedSquare !== null) {
+        board[selectedSquare.x][selectedSquare.y].td.classList.remove("selected");
+        selectedSquare = null;
+    }
+}
+
+placeInitialPieces();
+
 function setPreviousMove(xFrom, yFrom, xTo, yTo) {
     if (previousMove !== null) {
         board[previousMove.from.x][previousMove.from.y].td.classList.remove("lastmove");
@@ -69,7 +94,6 @@ function setPreviousMove(xFrom, yFrom, xTo, yTo) {
     board[previousMove.to.x][previousMove.to.y].td.classList.add("lastmove");
 }
 
-let selectedSquare = null;
 function click(x, y) {
     if (selectedSquare === null) {
         board[x][y].td.classList.add("selected");
@@ -134,11 +158,25 @@ function canMove(xFrom, yFrom, xTo, yTo) {
 function move(xFrom, yFrom, xTo, yTo) {
     const squareFrom = board[xFrom][yFrom];
     const squareTo = board[xTo][yTo];
-    if (squareTo.piece !== null) {
-        squareTo.td.firstChild.remove();
-    }
+    if (squareTo.piece !== null) squareTo.td.firstChild.remove();
     squareTo.td.appendChild(squareFrom.td.firstChild);
     squareTo.piece = squareFrom.piece;
     squareFrom.piece = null;
     turn = (turn === "white") ? "black" : "white";
 }
+
+const buttons = {
+    newWhiteGame: document.getElementById("new-white-game"),
+    newBlackGame: document.getElementById("new-black-game")
+};
+if (buttons.newWhiteGame === null || buttons.newBlackGame === null) throw new Error("Buttons not found");
+
+buttons.newWhiteGame.addEventListener("click", () => {
+    placeInitialPieces();
+    turn = "white";
+});
+
+buttons.newBlackGame.addEventListener("click", () => {
+    placeInitialPieces();
+    turn = "black";
+});

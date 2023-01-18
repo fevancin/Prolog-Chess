@@ -22,13 +22,36 @@ h1, p {
     background-color: var(--palette-color-1);
 }
 
+ul {
+    display: flex;
+    background-color: var(--palette-color-1);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+li {
+    padding: 0.25em;
+    cursor: pointer;
+}
+li:hover {
+    background-color: var(--palette-color-3);
+}
+li:first-child {
+    margin-right: auto;
+    cursor: default;
+}
+li:first-child:hover {
+    background-color: var(--palette-color-1);
+}
+
 main {
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-#chessboard {
+table {
     margin: 2em;
     background-color: var(--palette-color-1);
     border-collapse: collapse;
