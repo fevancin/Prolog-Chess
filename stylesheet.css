@@ -1,0 +1,70 @@
+:root {
+    --palette-color-1: rgb(35, 191, 218);
+    --palette-color-2: rgb(194, 224, 229);
+    --palette-color-3: rgb(17, 125, 144);
+    --palette-color-4: rgb(230, 255, 2);
+    --palette-color-5: rgb(87, 213, 78);
+}
+
+body {
+    margin: 0;
+    font-family: sans-serif;
+    background-color: var(--palette-color-2);
+    font-size: large;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+h1, p {
+    margin: 0;
+    padding: 0.25em 0;
+    text-align: center;
+    background-color: var(--palette-color-1);
+}
+
+main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#chessboard {
+    margin: 2em;
+    background-color: var(--palette-color-1);
+    border-collapse: collapse;
+    height: calc(100vmin - 10em);
+    aspect-ratio: 1;
+}
+
+th, td {
+    padding: 0;
+    position: relative;
+    width: 2em;
+    aspect-ratio: 1;
+}
+td.selected {
+    background-color: var(--palette-color-4) !important;
+}
+td.lastmove {
+    background-color: var(--palette-color-5) !important;
+}
+
+img {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    aspect-ratio: 1;
+}
+
+tr:nth-child(even) td:nth-child(even), tr:nth-child(odd) td:nth-child(odd) {
+    background-color: var(--palette-color-2);
+}
+tr:nth-child(odd) td:nth-child(even), tr:nth-child(even) td:nth-child(odd) {
+    background-color: var(--palette-color-3);
+}
+
+footer {
+    position: absolute;
+    bottom: 0;
+    width: 100vw;
+}
