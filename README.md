@@ -2,4 +2,6 @@
 
 A simple chess application to play a game against a Prolog AI.
 
-Open `index.html` to play!
+Open `server.js` with nodejs and then click on `index.html` to play!
+
+Require `nodejs` and `swipl`.

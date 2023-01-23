@@ -1,4 +1,3 @@
-const program = `
 :- use_module(library(lists)).
 
 % utility for the color swap.
@@ -61,9 +60,12 @@ v(8, 1) :- !. v(7, 2) :- !. v(6, 3) :- !. v(5, 4).
 % sum of X and Y value gives the square value
 squareValue([X, Y], Value) :- v(X, XValue), v(Y, YValue), Value is XValue + YValue.
 
-% semantic predicates used for a better legibility
 isPiece([_, _]).
 isSameColor(Color, [Color, _]).
+
+myPartition(_, [], [], []) :- !.
+myPartition(Rule, [H | T], [H | TrueTail], ListFalse) :- call(Rule, H), !, myPartition(Rule, T, TrueTail, ListFalse).
+myPartition(Rule, [H | T], ListTrue, [H | FalseTail]) :- myPartition(Rule, T, ListTrue, FalseTail).
 
 % predicate that specify the value Value of the board Board
 evaluate(Turn, Board, Value) :-
@@ -221,14 +223,6 @@ isEnd(Board) :- \+ getSquare(_, _,Board, [black, king]).
 
 getFirst([H | _], H).
 
-% for every move possible in the current situation choose the best one
-search(Board, Turn, Depth, Moves) :-
-  findall([ChildValue, ChildMoves], searchNode(Board, Turn, Depth, ChildValue, ChildMoves), ChildValueMoves),
-  maplist(getFirst, ChildValueMoves, ChildValues),
-  min_list(ChildValues, BestValue),
-  nth1(Index, ChildValues, BestValue),
-  nth1(Index, ChildValueMoves, [_, Moves]).
-
 % helper predicate of the search algorithm, with base cases
 searchNode(Board, Turn, 0, Value, []) :- !, evaluate(Turn, Board, Value).
 searchNode(Board, Turn, _, Value, []) :- isEnd(Board), !, evaluate(Turn, Board, Value).
@@ -242,4 +236,14 @@ searchNode(Board, Turn, Depth, BestValue, [Move | BestChildMoves]) :-
   min_list(ChildValues, BestValue),
   nth1(Index, ChildValues, BestValue),
   nth1(Index, ChildValueMoves, [_, BestChildMoves]).
-`;
+
+% for every move possible in the current situation choose the best one
+search(Board, Turn, Depth, Moves) :-
+  findall([ChildValue, ChildMoves], searchNode(Board, Turn, Depth, ChildValue, ChildMoves), ChildValueMoves),
+  maplist(getFirst, ChildValueMoves, ChildValues),
+  min_list(ChildValues, BestValue),
+  nth1(Index, ChildValues, BestValue),
+  nth1(Index, ChildValueMoves, [_, Moves]),
+  nth1(1, Moves, Move),
+  Move = [A, B, C, D],
+  format("[~a, ~a, ~a, ~a]", [A, B, C, D]).

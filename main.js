@@ -9,6 +9,7 @@ if (buttons.newWhiteGame === null || buttons.newBlackGame === null) throw new Er
 const BOARD_DIM = 8;
 const TYPES = ["king", "queen", "rook", "knight", "bishop", "pawn"];
 const COLORS = ["white", "black"];
+const SEARCH_DEPTH = 2;
 
 const initialPieces = [
     {type: "rook", color: "white", x: 7, y: 7}, {type: "knight", color: "white", x: 6, y: 7},
@@ -29,7 +30,7 @@ const initialPieces = [
     {type: "pawn", color: "black", x: 1, y: 1}, {type: "pawn", color: "black", x: 0, y: 1}
 ];
 
-// creating a dictionary of images, cloning is faster than loading multiple time
+// creating a dictionary of images, cloning is faster than loading multiple times
 const images = {};
 for (const color of COLORS) {
     images[color] = {}
@@ -86,6 +87,7 @@ function placeInitialPieces() {
         board[selectedSquare.x][selectedSquare.y].td.classList.remove("selected");
         selectedSquare = null;
     }
+    turn = "white";
 }
 
 function setLastMove(xFrom, yFrom, xTo, yTo) {
@@ -99,6 +101,21 @@ function setLastMove(xFrom, yFrom, xTo, yTo) {
     };
     board[lastMove.from.x][lastMove.from.y].td.classList.add("lastmove");
     board[lastMove.to.x][lastMove.to.y].td.classList.add("lastmove");
+}
+
+function askComputer() {
+    const ws = new WebSocket("ws://127.0.0.1:8080");
+    ws.onopen = () => ws.send(buildPrologRequest());
+    ws.onerror = () => console.error("An error has occurred");
+    ws.onmessage = (event) => {
+        const xFrom = +event.data[1] - 1;
+        const yFrom = +event.data[4] - 1;
+        const xTo = +event.data[7] - 1;
+        const yTo = +event.data[10] - 1;
+        move(xFrom, yFrom, xTo, yTo);
+        setLastMove(xFrom, yFrom, xTo, yTo);
+        ws.close();
+    };
 }
 
 function click(x, y) {
@@ -116,18 +133,39 @@ function click(x, y) {
         move(selectedSquare.x, selectedSquare.y, x, y);
         setLastMove(selectedSquare.x, selectedSquare.y, x, y);
         selectedSquare = null;
+        if (!isGameEnded()) askComputer();
         return;
     }
     board[x][y].td.classList.add("selected");
     selectedSquare = {x: x, y: y};
 }
 
+const handlers = [];
 for (let i = 0; i < BOARD_DIM; i++) {
+    const row = [];
     for (let j = 0; j < BOARD_DIM; j++) {
-        board[i][j].td.addEventListener("click", () => {
+        const handler = () => {
             click(i, j);
-        });
+        };
+        row.push(handler);
+        board[i][j].td.addEventListener("click", handler);
     }
+    handlers.push(row);
+}
+
+function isGameEnded() {
+    let isWhiteKing = false;
+    let isBlackKing = false;
+    for (let i = 0; i < BOARD_DIM; i++) {
+        for (let j = 0; j < BOARD_DIM; j++) {
+            const square = board[i][j].piece;
+            if (square !== null && square.type === "king") {
+                if (square.color === "white") isWhiteKing = true;
+                if (square.color === "black") isBlackKing = true;
+            }
+        }
+    }
+    return (!isBlackKing) || (!isWhiteKing);
 }
 
 const moveVectors = {
@@ -140,9 +178,10 @@ const moveVectors = {
 
 // returns true if (xFrom, yFrom) to (xTo, yTo) is a legal move
 function canMove(xFrom, yFrom, xTo, yTo) {
+    if (isGameEnded()) return false;
     const squareFrom = board[xFrom][yFrom];
     const squareTo = board[xTo][yTo];
-    if (squareFrom.piece === null) return false;
+    if (squareFrom.piece === null) return false; // TODO search for kings.........................................................
     if (squareFrom.piece.color !== turn) return false;
     if (xFrom === xTo && yFrom === yTo) return false;
     if (squareFrom.piece.type === "pawn") {
@@ -207,9 +246,7 @@ function boardToPrologString() {
         for (let j = 0; j < BOARD_DIM; j++) {
             const piece = board[i][j].piece;
             if (piece === null) string += "empty";
-            else {
-                string += "[" + piece.color + "," + piece.type + "]";
-            }
+            else string += "[" + piece.color + "," + piece.type + "]";
             if (j + 1 < BOARD_DIM) string += ",";
         }
         string += "]";
@@ -219,33 +256,20 @@ function boardToPrologString() {
     return string;
 }
 
-placeInitialPieces();
+function buildPrologRequest() {
+    return "search(" +
+        boardToPrologString() + ", " +
+        turn + ", " +
+        SEARCH_DEPTH + ", Moves).";
+}
 
 buttons.newWhiteGame.addEventListener("click", () => {
     placeInitialPieces();
-    turn = "white";
 });
 
 buttons.newBlackGame.addEventListener("click", () => {
     placeInitialPieces();
-    turn = "black";
+    askComputer(); // computer make first move
 });
 
-// const session = pl.create();
-// session.consult(program, {
-//     success: () => {
-//         // session.query("getStartingBoard(B).", {
-//         session.query("search(" + boardToPrologString() + ", " + turn + ", " + 1 + ", Moves).", {
-//             success: function () {
-//                 session.answer({
-//                     success: function (answer) {
-//                         console.log(session.format_answer(answer));
-//                     },
-//                     error: (error) => console.error("Error (" + error + ")"),
-//                     fail: () => console.log("Fail"),
-//                     limit: () => console.log("Limit reached")
-//                 });
-//             }, error: (error) => console.error("Error in parsing the goal (" + error + ")")
-//         });
-//     }, error: (error) => console.error("Error in parsing the program (" + error + ")")
-// });  
+placeInitialPieces();
