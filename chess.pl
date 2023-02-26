@@ -30,6 +30,17 @@ getStartingBoard([
   [[white,rook], [white,knight], [white,bishop], [white,queen], [white,king], [white,bishop], [white,knight], [white,rook]]
 ]).
 
+getBoard([
+  [empty, empty, empty, empty, [black, king], empty, empty, empty],
+  [empty, empty, empty, empty, empty, empty, empty, empty],
+  [empty, empty, empty, empty, empty, empty, empty, empty],
+  [empty, empty, empty, empty, empty, empty, empty, empty],
+  [empty, empty, empty, empty, [white, queen], empty, empty, empty],
+  [empty, empty, empty, empty, empty, empty, empty, empty],
+  [empty, empty, empty, empty, empty, empty, empty, empty],
+  [empty, empty, empty, empty, [white, king], empty, empty, empty]
+]).
+
 % modify Board executing the move [XFrom, YFrom, XTo, YTo]. Returns a new board NewBoard.
 % the first two predicates are for handling queen promotion
 makeMove(Board, [2, YFrom, 1, YTo], NewBoard) :-
@@ -70,7 +81,7 @@ myPartition(Rule, [H | T], ListTrue, [H | FalseTail]) :- myPartition(Rule, T, Li
 % predicate that specify the value Value of the board Board
 evaluate(Turn, Board, Value) :-
   append(Board, List), include(isPiece, List, Pieces),
-  partition(isSameColor(Turn), Pieces, MyPieces, OtherPieces),
+  myPartition(isSameColor(Turn), Pieces, MyPieces, OtherPieces),
 
   maplist(pieceValue, MyPieces, MyValues), % combined value of my pieces
   sum_list(MyValues, MyValue),
