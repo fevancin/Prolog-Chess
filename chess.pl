@@ -1,260 +1,183 @@
-:- use_module(library(lists)).
+% The board is represented by a list of lists, in which each square is 'empty' or a couple (color, type).
+empty_board([
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty]
+]).
 
-% utility for the color swap.
+initial_board([
+    [[black, rook], [black, knight], [black, bishop], [black, queen], [black, king], [black, bishop], [black, knight], [black, rook]],
+    [[black, pawn], [black, pawn], [black, pawn], [black, pawn], [black, pawn], [black, pawn], [black, pawn], [black, pawn]],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [empty, empty, empty, empty, empty, empty, empty, empty],
+    [[white, pawn], [white, pawn], [white, pawn], [white, pawn], [white, pawn], [white, pawn], [white, pawn], [white, pawn]],
+    [[white, rook], [white, knight], [white, bishop], [white, queen], [white, king], [white, bishop], [white, knight], [white, rook]]
+]).
+
+% small helper function for switching color.
 other(white, black) :- !.
 other(black, white).
 
-% Square is Board[X][Y].
-getSquare(X, Y, Board, Square) :- nth1(X, Board, Row), nth1(Y, Row, Square).
+% The square matching is computed via nth0. This predicate works in both directions (X,Y)->square and square->(X,Y).
+is_square(Board, X, Y, Square) :- nth0(X, Board, Row), nth0(Y, Row, Square).
 
-% substitute(N, List, Elem, NewList)
-% replace element N of List with Elem, returning the new list NewList.
-substitute(1, [_ | T], Elem, [Elem | T]) :- !.
-substitute(N, [H | T], Elem, [H | NewTail]) :- N2 is N - 1, substitute(N2, T, Elem, NewTail).
+% helper predicate for replacment of an element in al list.
+% replace(List, Index, Element, NewList).
+replace([_ | Tail], 0, Element, [Element | Tail]) :- !.
+replace([Head | Tail], N, Element, [Head | NewTail]) :- N2 is N - 1, replace(Tail, N2, Element, NewTail).
 
-% place a certain Square in Board[X][Y], returning the new board NewBoard.
-setSquare(X, Y, Board, Square, NewBoard) :-
-  nth1(X, Board, Row),
-  substitute(Y, Row, Square, NewRow),
-  substitute(X, Board, NewRow, NewBoard).
+% This predicate compute a new board with a certain (X,Y) square replaced. Pawns are promoted to queens.
+set_square(Board, 0, Y, [white, pawn], NewBoard) :- !,
+    nth0(0, Board, Row),
+    replace(Row, Y, [white, queen], NewRow),
+    replace(Board, 0, NewRow, NewBoard).
+set_square(Board, 7, Y, [black, pawn], NewBoard) :- !,
+    nth0(7, Board, Row),
+    replace(Row, Y, [black, queen], NewRow),
+    replace(Board, 7, NewRow, NewBoard).
+set_square(Board, X, Y, Square, NewBoard) :-
+    nth0(X, Board, Row),
+    replace(Row, Y, Square, NewRow),
+    replace(Board, X, NewRow, NewBoard).
 
-% the board is an 8x8 list of lists, containing 'empty' or a two-sized list [color, type].
-getStartingBoard([
-  [[black,rook], [black,knight], [black,bishop], [black,queen], [black,king], [black,bishop], [black,knight], [black,rook]],
-  [[black,pawn], [black,pawn],   [black,pawn],   [black,pawn],  [black,pawn], [black,pawn],   [black,pawn],   [black,pawn]],
-  [empty,        empty,          empty,          empty,         empty,        empty,          empty,          empty       ],
-  [empty,        empty,          empty,          empty,         empty,        empty,          empty,          empty       ],
-  [empty,        empty,          empty,          empty,         empty,        empty,          empty,          empty       ],
-  [empty,        empty,          empty,          empty,         empty,        empty,          empty,          empty       ],
-  [[white,pawn], [white,pawn],   [white,pawn],   [white,pawn],  [white,pawn], [white,pawn],   [white,pawn],   [white,pawn]],
-  [[white,rook], [white,knight], [white,bishop], [white,queen], [white,king], [white,bishop], [white,knight], [white,rook]]
-]).
+% A movement is reconduct to a double replacement: 'source' with 'empty' and 'destination' with 'source'.
+move(Board, SourceX, SourceY, DestinationX, DestinationY, NewBoard) :-
+    is_square(Board, SourceX, SourceY, Square),
+    set_square(Board, SourceX, SourceY, empty, TempBoard),
+    set_square(TempBoard, DestinationX, DestinationY, Square, NewBoard).
 
-getBoard([
-  [empty, empty, empty, empty, [black, king], empty, empty, empty],
-  [empty, empty, empty, empty, empty, empty, empty, empty],
-  [empty, empty, empty, empty, empty, empty, empty, empty],
-  [empty, empty, empty, empty, empty, empty, empty, empty],
-  [empty, empty, empty, empty, [white, queen], empty, empty, empty],
-  [empty, empty, empty, empty, empty, empty, empty, empty],
-  [empty, empty, empty, empty, empty, empty, empty, empty],
-  [empty, empty, empty, empty, [white, king], empty, empty, empty]
-]).
+% Predicate true if there are no pieces from source to destination.
+% The destination could contain 'empty' or a piece of the opposite color of the source (that could be taken).
+is_valid_trail(Board, SourceX, SourceY, DestinationX, DestinationY) :-
+    is_square(Board, SourceX, SourceY, [Color, _]),
+    DirectionX is sign(DestinationX - SourceX), DirectionY is sign(DestinationY - SourceY), % calc of the direction vector
+    NewX is SourceX + DirectionX, NewY is SourceY + DirectionY,
+    trail_helper(Board, Color, NewX, NewY, DestinationX, DestinationY, DirectionX, DirectionY).
 
-% modify Board executing the move [XFrom, YFrom, XTo, YTo]. Returns a new board NewBoard.
-% the first two predicates are for handling queen promotion
-makeMove(Board, [2, YFrom, 1, YTo], NewBoard) :-
-  getSquare(2, YFrom, Board, [white, pawn]), !, % if white pawn about to reach first row
-  setSquare(2, YFrom, Board, empty, TempBoard),
-  setSquare(1, YTo, TempBoard, [white, queen], NewBoard).
-makeMove(Board, [7, YFrom, 8, YTo], NewBoard) :-
-  getSquare(7, YFrom, Board, [black, pawn]), !,  % if black pawn about to reach last row
-  setSquare(7, YFrom, Board, empty, TempBoard),
-  setSquare(8, YTo, TempBoard, [black, queen], NewBoard).
-makeMove(Board, [XFrom, YFrom, XTo, YTo], NewBoard) :-
-  getSquare(XFrom, YFrom, Board, Square),
-  setSquare(XFrom, YFrom, Board, empty, TempBoard),
-  setSquare(XTo, YTo, TempBoard, Square, NewBoard).
+% Helper of the previous predicate with a recursive definition.
+trail_helper(Board, Color, DestinationX, DestinationY, DestinationX, DestinationY, _, _) :- !,
+    (is_square(Board, DestinationX, DestinationY, empty) ; (other(Color, OtherColor), is_square(Board, DestinationX, DestinationY, [OtherColor, _]))).
+trail_helper(Board, Color, SourceX, SourceY, DestinationX, DestinationY, DirectionX, DirectionY) :-
+    is_square(Board, SourceX, SourceY, empty),
+    NewX is SourceX + DirectionX, NewY is SourceY + DirectionY, % Each new call is obtained thanks to the directions provided.
+    trail_helper(Board, Color, NewX, NewY, DestinationX, DestinationY, DirectionX, DirectionY).
 
-% value of every piece type
-pieceValue([_,king], 1000) :- !.
-pieceValue([_,queen], 9) :- !.
-pieceValue([_,rook], 5) :- !.
-pieceValue([_,knight], 3) :- !.
-pieceValue([_,bishop], 3) :- !.
-pieceValue([_,pawn], 1).
+% below are all the different move computations. Nondeterminate predicates in order to obtain all possibilities.
+% King, knights and pawns don't require 'is_valid_trail' because they move with trails of one step.
 
-% indexes of square have an intrinsic value
-v(1, 1) :- !. v(2, 2) :- !. v(3, 3) :- !. v(4, 4) :- !.
-v(8, 1) :- !. v(7, 2) :- !. v(6, 3) :- !. v(5, 4).
+% king
+can_move(Board, Color, X, Y, NewX, NewY) :- is_square(Board, X, Y, [Color, king]),
+    nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewX), nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewY),
+    \+ (NewX == X, NewY == Y), abs(NewX - X) =< 1, abs(NewY - Y) =< 1,
+    (is_square(Board, NewX, NewY, empty) ; (other(Color, OtherColor), is_square(Board, NewX, NewY, [OtherColor, _]))).
 
-% sum of X and Y value gives the square value
-squareValue([X, Y], Value) :- v(X, XValue), v(Y, YValue), Value is XValue + YValue.
+% queen
+can_move(Board, Color, X, Y, NewX, NewY) :- is_square(Board, X, Y, [Color, queen]),
+    nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewX), nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewY),
+    \+ (NewX == X, NewY == Y), (abs(NewX - X) =:= abs(NewY - Y) ; ((NewX == X, NewY \= Y) ; (NewX \= X, NewY == Y))),
+    is_valid_trail(Board, X, Y, NewX, NewY).
 
-isPiece([_, _]).
-isSameColor(Color, [Color, _]).
+% rook
+can_move(Board, Color, X, Y, NewX, NewY) :- is_square(Board, X, Y, [Color, rook]),
+    nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewX), nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewY),
+    ((NewX == X, NewY \= Y) ; (NewX \= X, NewY == Y)),
+    is_valid_trail(Board, X, Y, NewX, NewY).
 
-myPartition(_, [], [], []) :- !.
-myPartition(Rule, [H | T], [H | TrueTail], ListFalse) :- call(Rule, H), !, myPartition(Rule, T, TrueTail, ListFalse).
-myPartition(Rule, [H | T], ListTrue, [H | FalseTail]) :- myPartition(Rule, T, ListTrue, FalseTail).
+% knight
+can_move(Board, Color, X, Y, NewX, NewY) :- is_square(Board, X, Y, [Color, knight]),
+    nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewX), nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewY),
+    ((abs(NewX - X) =:= 2, abs(NewY - Y) =:= 1) ; (abs(NewX - X) =:= 1, abs(NewY - Y) =:= 2)),
+    (is_square(Board, NewX, NewY, empty) ; (other(Color, OtherColor), is_square(Board, NewX, NewY, [OtherColor, _]))).
 
-% predicate that specify the value Value of the board Board
-evaluate(Turn, Board, Value) :-
-  append(Board, List), include(isPiece, List, Pieces),
-  myPartition(isSameColor(Turn), Pieces, MyPieces, OtherPieces),
+% bishop
+can_move(Board, Color, X, Y, NewX, NewY) :- is_square(Board, X, Y, [Color, bishop]),
+    nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewX), nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewY),
+    \+ (NewX == X, NewY == Y), abs(NewX - X) =:= abs(NewY - Y),
+    is_valid_trail(Board, X, Y, NewX, NewY).
 
-  maplist(pieceValue, MyPieces, MyValues), % combined value of my pieces
-  sum_list(MyValues, MyValue),
+% pawn
+can_move(Board, Color, X, Y, NewX, NewY) :- is_square(Board, X, Y, [Color, pawn]),
+    pawn_direction(Color, Direction),
+    nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewX), nth0(_, [0, 1, 2, 3, 4, 5, 6, 7], NewY),
+    ((NewX =:= X + Direction, NewY = Y, is_square(Board, NewX, NewY, empty)) ; % move forward
+    (X == 6, Color == white, NewX == 4, NewY = Y, is_square(Board, 5, NewY, empty), is_square(Board, 4, NewY, empty)) ; % initial double move of white
+    (X == 1, Color == black, NewX == 3, NewY = Y, is_square(Board, 2, NewY, empty), is_square(Board, 3, NewY, empty)) ; % initial double move of black
+    (NewX =:= X + Direction, NewY =:= Y + 1, other(Color, OtherColor), is_square(Board, NewX, NewY, [OtherColor, _])) ; % eat right
+    (NewX =:= X + Direction, NewY =:= Y - 1, other(Color, OtherColor), is_square(Board, NewX, NewY, [OtherColor, _]))). % eat left
 
-  maplist(pieceValue, OtherPieces, OtherValues), % combined value of enemy pieces
-  sum_list(OtherValues, OtherValue),
+pawn_direction(white, -1) :- !.
+pawn_direction(black, 1).
 
-  findall([X, Y], getSquare(X, Y, Board, [Turn, _]), MyPieceCoordinates), % combined value of my piece coordinates
-  maplist(squareValue, MyPieceCoordinates, MyPieceCoordinateValues),
-  sum_list(MyPieceCoordinateValues, MyPieceCoordinateValueSum),
+% The board value is the sum of all the pieces with their respective values and the value of their position.
+% Position are valued with the sum of their X and Y values as: 1, 2, 3, 4, 4, 3, 2, 1.
+board_value(Board, Value) :- board_helper(Board, 0, Value).
 
-  other(Turn, OtherTurn),
-  findall([X, Y], getSquare(X, Y, Board, [OtherTurn, _]), OtherPieceCoordinates), % combined value of enemy piece coordinates
-  maplist(squareValue, OtherPieceCoordinates, OtherPieceCoordinateValues),
-  sum_list(OtherPieceCoordinateValues, OtherPieceCoordinatesValueSum),
+% Sum of all rows.
+board_helper([], _, 0) :- !.
+board_helper([Row | Rest], X, Value) :- row_value(Row, X, 0, RowValue), X1 is X + 1, board_helper(Rest, X1, RestValue), Value is RowValue + RestValue.
 
-  Value is MyValue + MyPieceCoordinateValueSum - OtherValue - OtherPieceCoordinatesValueSum.
+% The value of a specific row is the sum of each square value.
+row_value([], _, _, 0) :- !.
+row_value([empty | Rest], X, Y, Value) :- !, Y1 is Y + 1, row_value(Rest, X, Y1, Value).
+row_value([[Color, Type] | Rest], X, Y, Value) :- Y1 is Y + 1, row_value(Rest, X, Y1, RestValue),
+    piece_value(Type, PieceValue), color_multiplier(Color, Multiplier),
+    coord_value(X, XValue), coord_value(Y, YValue),
+    Value is (PieceValue + XValue + YValue) * Multiplier + RestValue. % The multiplier is used for tracking white and black pieces.
 
-% recursive search for a valid trail, connecting (XFrom, YFrom) to (XTo, YTo) following a specific step size
-isValidTrail(_, _, [XFrom, YFrom, XTo, YTo], XDirection, YDirection) :-
-  XTo is XFrom + XDirection,
-  YTo is YFrom + YDirection, !.
-isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], XDirection, YDirection) :-
-  NewX is XFrom + XDirection,
-  NewY is YFrom + YDirection,
-  getSquare(NewX, NewY, Board, empty),
-  isValidTrail(Board, Turn, [NewX, NewY, XTo, YTo], XDirection, YDirection).
+% Kings are valued so much that render the win condition trivial as a simple bound check.
+% If the board value exits from (-10'000, 10'000) the game is ended.
+piece_value(king, 100000) :- !.
+piece_value(queen, 90) :- !.
+piece_value(rook, 50) :- !.
+piece_value(knight, 30) :- !.
+piece_value(bishop, 30) :- !.
+piece_value(pawn, 10).
 
-% KING MOVES
-findMove(Board, Turn, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [Turn, king]),
-  other(Turn, OtherTurn),
-  (
-    getSquare(XTo, YTo, Board, empty);
-    getSquare(XTo, YTo, Board, [OtherTurn, _])
-  ),
-  (
-    XTo is XFrom + 1, YTo = YFrom;
-    XTo is XFrom - 1, YTo = YFrom;
-    YTo is YFrom + 1, XTo = XFrom;
-    YTo is YFrom - 1, XTo = XFrom
-  ).
+% White correspond to positive values, black to negatives.
+color_multiplier(white, 1) :- !.
+color_multiplier(black, -1).
 
-% QUEEN MOVES
-findMove(Board, Turn, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [Turn, queen]),
-  other(Turn, OtherTurn),
-  (
-    getSquare(XTo, YTo, Board, empty);
-    getSquare(XTo, YTo, Board, [OtherTurn, _])
-  ),
-  (
-    XTo < XFrom, YTo = YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], -1, 0);
-    XTo > XFrom, YTo = YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 1, 0);
-    XTo = XFrom, YTo < YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 0, -1);
-    XTo = XFrom, YTo > YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 0, 1);
-    Dx is XTo - XFrom, Dx is YTo - YFrom, Dx < 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], -1, -1);
-    Dx is XTo - XFrom, Dx is YTo - YFrom, Dx > 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 1, 1);
-    Dx is XTo - XFrom, Dx is YFrom - YTo, Dx < 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], -1, 1);
-    Dx is XTo - XFrom, Dx is YFrom - YTo, Dx > 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 1, -1)
-  ).
+% 0,7 are valued 1, 1,6 are valued 2, 2,5 are valued 3 and 3,4 are valued 4.
+coord_value(0, 1) :- !.
+coord_value(1, 2) :- !.
+coord_value(2, 3) :- !.
+coord_value(3, 4) :- !.
+coord_value(4, 4) :- !.
+coord_value(5, 3) :- !.
+coord_value(6, 2) :- !.
+coord_value(7, 1).
 
-% ROOK MOVES
-findMove(Board, Turn, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [Turn, rook]),
-  other(Turn, OtherTurn),
-  (
-    getSquare(XTo, YTo, Board, empty);
-    getSquare(XTo, YTo, Board, [OtherTurn, _])
-  ),
-  (
-    XTo < XFrom, YTo = YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], -1, 0);
-    XTo > XFrom, YTo = YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 1, 0);
-    XTo = XFrom, YTo < YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 0, -1);
-    XTo = XFrom, YTo > YFrom, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 0, 1)
-  ).
+% Predicate that extract the couple (move,value) with the best value given the turn color (black strives for negative values, white for positives).
+extract_best_move([], _, none, 0) :- !.
+extract_best_move([[Move, Value] | Rest], Color, BestMove, BestValue) :- extract_helper(Rest, Color, Move, Value, BestMove, BestValue).
 
-% KNIGHT MOVES
-findMove(Board, Turn, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [Turn, knight]),
-  other(Turn, OtherTurn),
-  (
-    getSquare(XTo, YTo, Board, empty);
-    getSquare(XTo, YTo, Board, [OtherTurn, _])
-  ),
-  (
-    XTo is XFrom + 2, YTo is YFrom + 1; XTo is XFrom + 2, YTo is YFrom - 1;
-    XTo is XFrom + 1, YTo is YFrom + 2; XTo is XFrom + 1, YTo is YFrom - 2;
-    XTo is XFrom - 1, YTo is YFrom + 2; XTo is XFrom - 1, YTo is YFrom - 2;
-    XTo is XFrom - 2, YTo is YFrom + 1; XTo is XFrom - 2, YTo is YFrom - 1
-  ).
+extract_helper([], _, TempMove, TempValue, TempMove, TempValue) :- !.
+extract_helper([[Move, Value] | Rest], Color, _, TempValue, BestMove, BestValue) :- color_multiplier(Color, Multiplier), Value * Multiplier > TempValue * Multiplier, !, extract_helper(Rest, Color, Move, Value, BestMove, BestValue).
+extract_helper([_ | Rest], Color, TempMove, TempValue, BestMove, BestValue) :- extract_helper(Rest, Color, TempMove, TempValue, BestMove, BestValue).
 
-% BISHOP MOVES
-findMove(Board, Turn, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [Turn, bishop]),
-  other(Turn, OtherTurn),
-  (
-    getSquare(XTo, YTo, Board, empty);
-    getSquare(XTo, YTo, Board, [OtherTurn, _])
-  ),
-  (
-    Dx is XTo - XFrom, Dx is YTo - YFrom, Dx < 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], -1, -1);
-    Dx is XTo - XFrom, Dx is YTo - YFrom, Dx > 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 1, 1);
-    Dx is XTo - XFrom, Dx is YFrom - YTo, Dx < 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], -1, 1);
-    Dx is XTo - XFrom, Dx is YFrom - YTo, Dx > 0, isValidTrail(Board, Turn, [XFrom, YFrom, XTo, YTo], 1, -1)
-  ).
+% Min-max search implementation. This specific callable predicate doesn't make any moves in order to avoid branching in the top-most level.
+search(Board, Color, Depth, BestMove, BestValue) :-
+    findall([ChildBestMove, ChildBestValue], search_helper(Board, Color, Depth, ChildBestMove, ChildBestValue), ChildResults),
+    extract_best_move(ChildResults, Color, BestMove, BestValue),
+    BestMove = move(A, B, C, D),
+    format("[~a, ~a, ~a, ~a]", [A, B, C, D]).
 
-% PAWN MOVES (very complex and ad-hoc routine, ik)
-findMove(Board, white, [XFrom, YFrom, XTo, YFrom]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [white, pawn]),
-  XTo is XFrom - 1,
-  getSquare(XTo, YFrom, Board, empty).
-findMove(Board, white, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [white, pawn]),
-  XTo is XFrom - 1,
-  (YTo is YFrom - 1; Yto is YFrom + 1),
-  getSquare(XTo, Yto, Board, [black, _]).
-findMove(Board, white, [7, YFrom, 5, YFrom]) :-
-  nth1(7, Board, Row),
-  nth1(YFrom, Row, [white, pawn]),
-  getSquare(6, YFrom, Board, empty),
-  getSquare(5, YFrom, Board, empty).
-findMove(Board, black, [XFrom, YFrom, XTo, YFrom]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [black, pawn]),
-  XTo is XFrom + 1,
-  getSquare(XTo, YFrom, Board, empty).
-findMove(Board, black, [2, YFrom, 4, YFrom]) :-
-  nth1(2, Board, Row),
-  nth1(YFrom, Row, [black, pawn]),
-  getSquare(3, YFrom, Board, empty),
-  getSquare(4, YFrom, Board, empty).
-findMove(Board, black, [XFrom, YFrom, XTo, YTo]) :-
-  nth1(XFrom, Board, Row),
-  nth1(YFrom, Row, [black, pawn]),
-  XTo is XFrom + 1,
-  (YTo is YFrom - 1; Yto is YFrom + 1),
-  getSquare(XTo, Yto, Board, [white, _]).
-
-% check for end of game (one king is dead)
-isEnd(Board) :- \+ getSquare(_, _,Board, [white, king]), !.
-isEnd(Board) :- \+ getSquare(_, _,Board, [black, king]).
-
-getFirst([H | _], H).
-
-% helper predicate of the search algorithm, with base cases
-searchNode(Board, Turn, 0, Value, []) :- !, evaluate(Turn, Board, Value).
-searchNode(Board, Turn, _, Value, []) :- isEnd(Board), !, evaluate(Turn, Board, Value).
-searchNode(Board, Turn, Depth, BestValue, [Move | BestChildMoves]) :-
-  findMove(Board, Turn, Move),
-  makeMove(Board, Move, ChildBoard),
-  other(Turn, ChildTurn),
-  ChildDepth is Depth - 1,
-  findall([ChildValue, ChildMoves], searchNode(ChildBoard, ChildTurn, ChildDepth, ChildValue, ChildMoves), ChildValueMoves), % recursion
-  maplist(getFirst, ChildValueMoves, ChildValues),
-  min_list(ChildValues, BestValue),
-  nth1(Index, ChildValues, BestValue),
-  nth1(Index, ChildValueMoves, [_, BestChildMoves]).
-
-% for every move possible in the current situation choose the best one
-search(Board, Turn, Depth, Moves) :-
-  findall([ChildValue, ChildMoves], searchNode(Board, Turn, Depth, ChildValue, ChildMoves), ChildValueMoves),
-  maplist(getFirst, ChildValueMoves, ChildValues),
-  min_list(ChildValues, BestValue),
-  nth1(Index, ChildValues, BestValue),
-  nth1(Index, ChildValueMoves, [_, Moves]),
-  nth1(1, Moves, Move),
-  Move = [A, B, C, D],
-  format("[~a, ~a, ~a, ~a]", [A, B, C, D]).
+% Base case of max depth reach.
+search_helper(Board, _, 0, none, Value) :- !, board_value(Board, Value).
+% Base case of a checkmate. Board values are computed assigning a very big number to kings.
+search_helper(Board, _, _, none, Value) :- board_value(Board, Value), (Value > 10000 ; Value < -10000), !.
+% Actual recursive search.
+search_helper(Board, Color, Depth, move(SourceX, SourceY, DestinationX, DestinationY), BestValue) :-
+    other(Color, ChildColor),
+    ChildDepth is Depth - 1,
+    can_move(Board, Color, SourceX, SourceY, DestinationX, DestinationY), % Non-deterministic step
+    move(Board, SourceX, SourceY, DestinationX, DestinationY, ChildBoard), % apply the current chosen move to obtain ChildBoard
+    findall([ChildBestMove, ChildBestValue], search_helper(ChildBoard, ChildColor, ChildDepth, ChildBestMove, ChildBestValue), ChildResults), % recursive search
+    extract_best_move(ChildResults, Color, _, BestValue).

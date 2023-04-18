@@ -108,10 +108,10 @@ function askComputer() {
     ws.onopen = () => ws.send(buildPrologRequest());
     ws.onerror = () => console.error("An error has occurred");
     ws.onmessage = (event) => {
-        const xFrom = +event.data[1] - 1;
-        const yFrom = +event.data[4] - 1;
-        const xTo = +event.data[7] - 1;
-        const yTo = +event.data[10] - 1;
+        const xFrom = +event.data[1];
+        const yFrom = +event.data[4];
+        const xTo = +event.data[7];
+        const yTo = +event.data[10];
         move(xFrom, yFrom, xTo, yTo);
         setLastMove(xFrom, yFrom, xTo, yTo);
         ws.close();
@@ -260,7 +260,7 @@ function buildPrologRequest() {
     return "search(" +
         boardToPrologString() + ", " +
         turn + ", " +
-        SEARCH_DEPTH + ", Moves).";
+        SEARCH_DEPTH + ", Move, Value).";
 }
 
 buttons.newWhiteGame.addEventListener("click", () => {
